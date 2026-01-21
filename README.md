@@ -37,7 +37,7 @@ Serveur DHCP : Il distribue automatiquement les adresses IP (.100 à .200) aux n
 
 Résolveur DNS : Il assure la traduction des noms de domaine (ex: google.fr) en adresses IP pour l'ensemble du parc, en utilisant des serveurs performants et sécurisés (Cloudflare/Google).
 
-## 🚀 Proxmox
+## Proxmox
 
 Proxmox Virtual Environment (VE) constitue le socle fondamental de notre projet. C'est une plateforme de virtualisation d'entreprise open-source basée sur Debian Linux.
 

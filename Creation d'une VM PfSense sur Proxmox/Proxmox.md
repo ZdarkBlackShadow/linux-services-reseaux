@@ -1,4 +1,4 @@
-# 🚀 Proxmox
+# Proxmox
 
 ![Proxmox logo](./images/proxmox.png)
 
