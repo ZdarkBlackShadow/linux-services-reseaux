@@ -1,7 +1,3 @@
----
-title: Bastion d'administration - Teleport (Debian)
----
-
 # Bastion d'administration avec Teleport (Debian)
 
 Ce guide décrit l'installation et la mise en service de **Teleport 14.1.1** sur une VM Debian.
