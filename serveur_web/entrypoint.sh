@@ -13,3 +13,4 @@ echo "Exécution des migrations..."
 
 echo "Lancement du serveur..."
 exec ./server
+
