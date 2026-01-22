@@ -1,6 +1,8 @@
 # Introduction
 
-## Installation de docker 
+La base de donnée est une base de donnée `mysql`, c'est l'application web qui fonctionne comme ça.
+
+# Installation de docker 
 
 On télécharge le script d'installation
 
@@ -39,7 +41,7 @@ sudo systemctl enable docker
 sudo systemctl start docker
 ```
 
-## Instalation de la base de donnée
+# Instalation de la base de donnée
 
 on lance le contener
 
@@ -47,7 +49,7 @@ on lance le contener
 sudo docker compose up -d
 ```
 
-## vérification
+# vérification
 
 ```bash
 sudo docker ps -a
