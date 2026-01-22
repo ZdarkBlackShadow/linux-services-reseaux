@@ -1,3 +1,5 @@
+# Introduction
+
 ## Installation de docker 
 
 On télécharge le script d'installation
@@ -36,3 +38,25 @@ sudo systemctl enable docker
 ```bash
 sudo systemctl start docker
 ```
+
+## Instalation de la base de donnée
+
+on lance le contener
+
+```bash
+sudo docker compose up -d
+```
+
+## vérification
+
+```bash
+sudo docker ps -a
+```
+
+on voit le contener avec le status qui doit être **UP** et on peut aussi vérifier si le port **3306** est ouvert avec
+
+```bash
+ss -tnlp
+```
+
+et normalemnt on voit un service qui écoute et qui envoie sur le port `3306` en tcp
