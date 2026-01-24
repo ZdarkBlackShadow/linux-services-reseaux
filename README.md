@@ -1,77 +1,117 @@
-# Création d'une Virtual Machine pfSense sur Proxmox
+DOCUMENTATION GRAFANA
 
-## PfSense
+Mise à jour du système
 
-Dans le cadre de ce projet de virtualisation sur Proxmox, pfSense agit comme la pierre angulaire du réseau. Il ne s'agit pas simplement d'un logiciel, mais d'une appliance virtuelle de sécurité et de routage basée sur FreeBSD (Packet Filter).
+apt update
 
-Son rôle est quadruple au sein de notre architecture :
-### 1. Segmentation et Isolation Réseau (Edge Router)
+Paquets de base
 
-pfSense crée une frontière étanche entre deux mondes :
+apt install -y sudo curl ca-certificates gnupg nftables ufw fail2ban
 
-Le WAN (Zone Publique/Physique) : Connecté au réseau de la Box Internet et exposé aux menaces potentielles ou au trafic non contrôlé.
+mkdir -p /etc/apt/keyrings
+curl -fsSL https://apt.grafana.com/gpg.key | gpg --dearmor -o /etc/apt/keyrings/grafana.gpg
+echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" > /etc/apt/sources.list.d/grafana.list
+apt update
 
-Le LAN (Zone Privée/Virtuelle) : Un réseau totalement isolé (192.168.100.0/24) dédié à nos machines virtuelles. Utilité : Cette segmentation garantit que les VMs ne sont pas directement accessibles depuis le réseau physique, protégeant ainsi l'environnement de production.
+Installation Grafana
 
-### 2. Routage et Translation d'Adresse (NAT)
+apt install -y grafana
 
-Puisque nos VMs utilisent un plan d'adressage privé interne, elles ne peuvent pas sortir sur Internet nativement.
+Activation et démarrage du service
 
-Fonction NAT (Network Address Translation) : pfSense masque toutes les adresses IP des VMs derrière sa propre adresse WAN. Il permet ainsi à tout le parc virtuel d'accéder à Internet via une seule IP de sortie.
+systemctl daemon-reload
+systemctl enable grafana-server
+systemctl start grafana-server
 
-Routage : Il dirige intelligemment les paquets entre les différents sous-réseaux virtuels.
+Vérifications
 
-### 3. Filtrage de Paquets (Firewalling Stateful)
+systemctl status grafana-server
+ss -tulnp | grep 3000
 
-Contrairement à un routeur basique, pfSense inspecte l'état des connexions.
+Accès à Grafana
 
-Politique par défaut : Tout ce qui n'est pas explicitement autorisé est interdit.
+http://IP_GRAFANA:3000
 
-Contrôle Granulaire : Nous avons défini des règles strictes (ex: Default allow LAN to any) pour contrôler exactement qui a le droit de communiquer avec qui, offrant une sécurité bien supérieure à celle d'une simple Box Internet.
+Identifiants défaut
 
-### 4. Gestion des Services Réseaux (Core Network Services)
+Utilisateur : admin
+Mot de passe : admin
 
-Il centralise les fonctions vitales pour le fonctionnement du réseau interne, évitant d'avoir à configurer chaque VM manuellement :
+Intégration Prometheus
 
-Serveur DHCP : Il distribue automatiquement les adresses IP (.100 à .200) aux nouvelles machines qui rejoignent le réseau.
+URL datasource Prometheus :
+http://IP_PROMETHEUS:9090
 
-Résolveur DNS : Il assure la traduction des noms de domaine (ex: google.fr) en adresses IP pour l'ensemble du parc, en utilisant des serveurs performants et sécurisés (Cloudflare/Google).
+DOCUMENTATION PROMETHEUS
 
-## Proxmox
+Création de l’utilisateur et des dossiers
 
-Proxmox Virtual Environment (VE) constitue le socle fondamental de notre projet. C'est une plateforme de virtualisation d'entreprise open-source basée sur Debian Linux.
+mkdir /etc/prometheus
+mkdir /var/lib/prometheus
+chown prometheus:prometheus /etc/prometheus /var/lib/prometheus
 
-Contrairement à un logiciel que l'on installe sur Windows (comme VirtualBox), Proxmox est un Hyperviseur de Type 1. Cela signifie qu'il s'installe directement sur le matériel physique, sans système d'exploitation intermédiaire, offrant ainsi des performances quasi-natives.
+Téléchargement et installation de Prometheus
 
-Ses fonctions clés dans notre architecture sont les suivantes :
-### 1. Abstraction et Orchestration des Ressources
+cd /tmp
+curl -LO https://github.com/prometheus/prometheus/releases/download/v2.52.0/prometheus-2.52.0.linux-amd64.tar.gz
 
-Proxmox transforme le serveur physique en un pool de ressources logiques (vCPU, vRAM, Stockage virtuel).
+tar xvf prometheus-2.52.0.linux-amd64.tar.gz
+cp prometheus-2.52.0.linux-amd64/prometheus /usr/local/bin/
+cp prometheus-2.52.0.linux-amd64/promtool /usr/local/bin/
+cp -r prometheus-2.52.0.linux-amd64/consoles /etc/prometheus/
+cp -r prometheus-2.52.0.linux-amd64/console_libraries /etc/prometheus/
 
-Mutualisation : Il nous permet d'exécuter simultanément des systèmes d'exploitation hétérogènes (FreeBSD pour pfSense, Linux Debian pour la VM Client) sur une seule machine physique.
+Configuration Prometheus
 
-Isolation : Il garantit que si la VM Client plante ou est compromise, cela n'affecte pas le routeur pfSense ni l'hyperviseur lui-même.
+nano /etc/prometheus/prometheus.yml
 
-### 2. Commutation Virtuelle
+Contenu du fichier prometheus.yml
 
-C'est le rôle le plus critique pour notre topologie réseau. Proxmox remplace les switchs et les câbles physiques par des Ponts Virtuels (Linux Bridges) :
+global:
+scrape_interval: 15s
 
-Gestion du vmbr0 (WAN) : Il fait le pont entre la carte réseau physique du serveur et l'interface WAN de pfSense.
+scrape_configs:
 
-Création du vmbr1 (LAN) : Il agit comme un switch virtuel totalement isolé, connectant le LAN de pfSense à nos VMs internes. C'est grâce à lui que nous pouvons créer un réseau privé invisible depuis l'extérieur.
+job_name: "prometheus"
+static_configs:
 
-Création du vmbr2 (LAN2/DMZ) : Il constitue un second switch virtuel interne, strictement séparé du vmbr1. Il permet de segmenter le réseau pour isoler des zones sensibles ou des invités (DMZ), garantissant qu'une machine compromise sur ce réseau ne puisse pas attaquer le LAN principal.
+targets:
 
-### 3. Gestion Unifiée et Out-of-Band Management
+"localhost:9090"
 
-Proxmox fournit les outils indispensables à la maintenance que nous avons utilisés tout au long du projet :
+Permissions
 
-Accès Console (VNC) : Il permet d'accéder à l'écran des VMs même lorsque le réseau est coupé (indispensable lors de nos pannes de configuration pfSense).
+chown -R prometheus:prometheus /etc/prometheus
+chown prometheus:prometheus /usr/local/bin/prometheus /usr/local/bin/promtool
 
-Gestion du Cycle de Vie : Démarrage, arrêt et redémarrage forcé des machines virtuelles.
+Service systemd
 
-### 4. Résilience et Sécurité (Snapshots)
+nano /etc/systemd/system/prometheus.service
 
-Il apporte une couche de sécurité opérationnelle essentielle :
+Contenu du service
 
-Snapshots (Instantanés) : Avant chaque modification critique (ajout de VPN, changement de règles pare-feu), Proxmox nous permet de figer l'état exact de la VM. En cas d'erreur de configuration, le retour en arrière (Rollback) est instantané, garantissant la continuité de service.
+[Unit]
+Description=Prometheus
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=prometheus
+Group=prometheus
+ExecStart=/usr/local/bin/prometheus \
+--config.file=/etc/prometheus/prometheus.yml \
+--storage.tsdb.path=/var/lib/prometheus
+
+[Install]
+WantedBy=multi-user.target
+
+Activation et démarrage
+
+systemctl daemon-reload
+systemctl enable prometheus
+systemctl start prometheus
+
+Vérifications
+
+promtool check config /etc/prometheus/prometheus.yml
+ss -tulnp | grep 9090
